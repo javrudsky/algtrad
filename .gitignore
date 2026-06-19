@@ -1,4 +1,5 @@
 # Byte-compiled / optimized / DLL files
+.DS_Store
 __pycache__/
 *.py[codz]
 *$py.class
@@ -68,6 +69,11 @@ instance/
 # Scrapy stuff:
 .scrapy
 
+# App logs
+logs/
+
+# App Data
+data/
 # Sphinx documentation
 docs/_build/
 

@@ -1,0 +1,32 @@
+name: trad 
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python
+  - numpy
+  - tensorflow
+  - jupyterlab
+  - pandas
+  - matplotlib
+  - pillow 
+  - imageio
+  - seaborn
+  - scikit-learn
+  - category_encoders
+  - xgboost
+  - itables
+  - darts
+  - duckdb
+  - yfinance
+  - optuna
+  - typer
+  - pydantic
+  - python-dotenv
+  - pytest
+  - pip
+  - pip:
+    - jupyterlab-vim
+    - jupyterlab-lsp
+    - jupyterlab-optuna
+    - notebook-intelligence
