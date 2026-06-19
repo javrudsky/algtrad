@@ -94,7 +94,7 @@ def test_app_config_load_config_calls_load_dotenv(monkeypatch) -> None:
     os_getenv.getenv = fake_getenv
     monkeypatch.setattr("jlatrading.common.config.os.getenv", os_getenv.getenv)
 
-    expected_path = f"{algpath_path}/.env"
+    expected_path = f"{algpath_path}.env"
     load_dotenv_mock = Mock()
 
     monkeypatch.setattr("jlatrading.common.config.load_dotenv", load_dotenv_mock)
