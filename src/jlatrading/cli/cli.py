@@ -8,7 +8,8 @@ from ..common.config import AppConfig
 from ..core import core
 
 # Initialize the main Typer application
-app = typer.Typer(help="Research Trading Project.")
+# app = typer.Typer(help="Research Trading Project.")
+app = typer.Typer(no_args_is_help=True)
 
 
 def run():
@@ -16,30 +17,25 @@ def run():
     app()
 
 
-def version_callback(value: bool):
-    """Callback function that prints the version and exits immediately."""
-    if value:
-        app_version = __version__
-        typer.echo(f"jla-trading v{app_version}")
-        raise typer.Exit()
+def show_version():
+    """Function that prints the version and exits immediately."""
+    app_version = __version__
+    typer.echo(f"jla-trading v{app_version}")
+    raise typer.Exit()
 
 
 @app.callback()
 def main(
-    version: Optional[bool] = typer.Option(
-        None,
+    version: bool = typer.Option(
+        False,
         "--version",
-        "-v",
-        callback=version_callback,
+        help="Show the application version and exit.",
         is_eager=True,
-        help="Show the application version and exit."
-    )
-):
-    """
-    Main entry point for global options.
-    This acts as a wrapper for your entire CLI application.
-    """
-    pass
+    ),
+) -> None:
+    if version:
+        show_version()
+        raise typer.Exit()
 
 
 @app.command()
@@ -83,3 +79,9 @@ def daily_bar_history(tickers: list[str] | None = None, start_date: str = "", en
 
     records = core.download_daily_bar(valid_tickers, start_date=start_date, end_date=end_date)
     typer.echo(f"Downloaded and saved {records} records for tickers: {valid_tickers} from {start_date} to {end_date}")
+
+
+@app.command()
+def instruments_prices():
+    records = core.download_instruments_prices()
+    typer.echo(f"Downloaded and saved {records} records for instruments prices.")

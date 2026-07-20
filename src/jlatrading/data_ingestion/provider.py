@@ -4,6 +4,11 @@ from abc import ABC, abstractmethod
 class MarketProvider(ABC):
 
     @abstractmethod
+    def download_instruments_prices(self) -> list[dict]:
+        """Return a list of available market tickers."""
+        pass
+
+    @abstractmethod
     def download_daily_bar(self,
                            tickers: list[str],
                            start_date: str,
@@ -17,4 +22,5 @@ class MarketProvider(ABC):
         Returns:
             A json string representing the historical price data for the specified symbol and date range.
         """
+        # TODO: This function should return a dict
         pass

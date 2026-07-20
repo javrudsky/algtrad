@@ -44,7 +44,7 @@ class YFinanceProvider(MarketProvider):
         # data = yf.download(tickers, start=start_date, end=end_date, interval="1d", group_by='ticker').to_json(orient="records")
         yf = self.yf
         data = yf.download(tickers, start=start_date, end=end_date, interval="1d")
-        if data is None:
+        if data is None or data.empty:
             logger.d(f"No data found for tickers: {tickers} from {start_date} to {end_date}")
             return "[]"
 
@@ -55,9 +55,12 @@ class YFinanceProvider(MarketProvider):
                 )
 
         json_str = data.rename(columns=str.lower).to_json(orient="records")
-        print(data.head(5))
         logger.d(f"Downloaded data for tickers: {tickers} from {start_date} to {end_date}")
         if json_str is None:
             logger.d(f"No data found for tickers: {tickers} from {start_date} to {end_date}")
             return "[]"
         return json_str
+
+    def download_instruments_prices(self) -> list[dict]:
+        """Return a list of available market tickers."""
+        return []  # Not implemented for yfinance provider
