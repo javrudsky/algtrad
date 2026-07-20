@@ -2,6 +2,7 @@ import duckdb
 from pathlib import Path
 
 from .db import Db
+from .db_helper import DbHelper
 from .db_tables import tables_config
 from ..common.exceptions import DbError
 from ..common.app_logger import AppLogger
@@ -71,10 +72,12 @@ class DuckDb(Db):
             self.conn = self.__open_connection()
             logger.d("Creating database structure from configuration.")
             for table_config in tables_config:
-                logger.d(f"Creating sequence and table for {table_config['table_name']}")
+                logger.d(f"Creating sequence for {table_config['table_name']}")
                 self.conn.execute(f"CREATE SEQUENCE  IF NOT EXISTS { table_config['table_name'] }_id_seq START 1")
+                logger.d(f"Creating table {table_config['table_name']}")
                 self.conn.execute(table_config["insert_sql"])
         except duckdb.Error as exc:
+            logger.e("Failed creating database structure: {str(exc)}")
             raise DbError(f"Failed creating database estructure: {str(exc)}") from exc
 
     def disconnect(self):
@@ -85,33 +88,76 @@ class DuckDb(Db):
             logger.d("Closing database connection.")
             self.conn = None
 
-    def execute_query(self, query: str) -> list[dict]:
+    def execute_query(
+        self,
+        query: str,
+        params: list[object] | tuple[object, ...] | None = None,
+    ) -> list[dict]:
         """
-        Execute a SQL query and return the result set as a list of dictionaries.
+        Execute a SQL query and return rows as a list of dictionaries.
+
+        Raises:
+            DbError: If the query execution fails.
+        """
+        if self.conn is None:
+            raise DbError("Database connection is not initialized.")
+
+        try:
+            query = DbHelper.normalize_sql(query)
+            cursor = self.conn.execute(query, params or [])
+            columns = [desc[0] for desc in cursor.description]
+            rows = cursor.fetchall()
+            return [dict(zip(columns, row)) for row in rows]
+        except Exception as exc:
+            raise DbError(f"Failed to execute query: {exc}") from exc
+
+    def query_table(
+        self,
+        table: str,
+        projection: list[str],
+        filter: dict[str, object] | None = None,
+        order_by: list[str] | None = None,
+    ) -> list[dict]:
+        """
+        Query a DuckDB table with optional equality filters.
 
         Args:
-            query: SQL query to execute.
+            table: Name of the target table.
+            projection: Columns to select.
+            filter: Optional dictionary of column-value pairs for filtering.
+            order_by: Optional list of columns for sorting.
 
         Returns:
-            Query results as a list of dictionaries. Returns an empty list for
-            statements that do not produce a result set.
+            List of rows matching the query as dictionaries.
 
         Raises:
             DbError: If the query execution fails.
         """
 
-        try:
-            conn = self.__checked_connection()
-            logger.d(f"Executing query: {query}")
-            result = conn.execute(query)
-        except duckdb.Error as exc:
-            raise DbError(f"Failed executing query: {str(exc)}") from exc
+        quoted_table = DbHelper.quote_identifier(table)
+        quoted_projection = (
+            ", ".join(DbHelper.quote_identifier(column) for column in projection)
+            if projection
+            else "*"
+        )
 
-        if result.description is None:
-            return []
+        sql = f"SELECT {quoted_projection} FROM {quoted_table}"
+        params: list[object] = []
 
-        columns = [column[0] for column in result.description]
-        return [dict(zip(columns, row)) for row in result.fetchall()]
+        if filter:
+            where_clause = " AND ".join(
+                f"{DbHelper.quote_identifier(column)} = ?"
+                for column in filter
+            )
+            sql += f"\nWHERE {where_clause}"
+            params.extend(filter.values())
+
+        if order_by:
+            order_clause = ", ".join(DbHelper.quote_identifier(column) for column in order_by)
+            sql += f"\nORDER BY {order_clause}"
+
+        sql = DbHelper.normalize_sql(sql)
+        return self.execute_query(sql, params)
 
     def insert_or_update(self, table: str, data: list[dict], exclude_upd_cols: list[str] = []):
         """
@@ -149,6 +195,7 @@ class DuckDb(Db):
             ON CONFLICT ({update_fields}) DO UPDATE SET {update_clause}
         """
         logger.d(f"Executing insert_or_update with SQL: {sql} and data: {data}")
+        sql = DbHelper.normalize_sql(sql)
         try:
             conn = self.__checked_connection()
             conn.executemany(sql, rows)
@@ -193,7 +240,7 @@ class DuckDb(Db):
             DELETE FROM {quoted_table}
             WHERE {where_clause}
         """
-
+        sql = DbHelper.normalize_sql(sql)
         try:
             conn = self.__checked_connection()
             conn.execute(sql, tuple(values))
