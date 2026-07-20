@@ -100,7 +100,6 @@ def get_instruments_quotes(token: str) -> list[str]:
     ]
     countries = ["argentina", "estados_unidos"]
     """
-
     url = f"{BASE_URL}/Cotizaciones/cedears/argentina/Todos"
     data = {}
     response = request(url, data, token, method="GET")
@@ -110,11 +109,17 @@ def get_instruments_quotes(token: str) -> list[str]:
 
 
 command_map = {
+    "get_token": get_auth_token,
     "iquotes": get_instruments_quotes,
 }
 
 
 def exec_command(command: str, username: str, password: str):
+    if command == "get_token":
+        token = get_auth_token(username, password)
+        print(token)
+        return
+
     command_func = command_map.get(command, None)
     if command_func:
         token = get_auth_token(username, password)
