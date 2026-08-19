@@ -1,162 +1,75 @@
+from unittest.mock import Mock
 
-from jlatrading.database.db import Db
 from jlatrading.repository.daily_bar_repo import DailyBarRepo
 
-from jlatrading.common.app_logger import AppLogger
 
-"""
-Using an inmemory database to test the DailyBarRepo class for now.
-It seems easely testable without needing to mock the database connection, and it allows us to test the actual SQL queries being executed.
-"""
-logger = AppLogger.get_logger(__name__)
+def test_init_stores_db_connection():
+    db_conn = Mock()
+    repo = DailyBarRepo(db_conn)
 
-
-def test_save_inserts_rows(db) -> None:
-    repo = DailyBarRepo(db)
-
-    repo.save(
-        [
-            {
-                "ticker": "AAPL",
-                "date": "2024-01-01",
-                "open": 100.0,
-                "high": 110.0,
-                "low": 95.0,
-                "close": 105.0,
-                "volume": 1000,
-            },
-            {
-                "ticker": "MSFT",
-                "date": "2024-01-02",
-                "open": 200.0,
-                "high": 210.0,
-                "low": 190.0,
-                "close": 205.0,
-                "volume": 2000,
-            },
-        ]
-    )
-
-    rows = db.execute_query(
-        """
-        SELECT ticker, date, open, high, low, close, volume
-        FROM daily_bar_history
-        ORDER BY ticker, date
-        """
-    )
-
-    assert len(rows) == 2
-    assert rows[0]["ticker"] == "AAPL"
-    assert str(rows[0]["date"]) == "2024-01-01"
-    assert rows[0]["close"] == 105.0
-    assert rows[1]["ticker"] == "MSFT"
-    assert str(rows[1]["date"]) == "2024-01-02"
-    assert rows[1]["volume"] == 2000
+    assert repo.db_conn is db_conn
 
 
-def test_save_updates_existing_row(db: Db) -> None:
-    repo = DailyBarRepo(db)
-
-    repo.save(
-        [
-            {
-                "ticker": "AAPL",
-                "date": "2024-01-01",
-                "open": 100.0,
-                "high": 110.0,
-                "low": 95.0,
-                "close": 105.0,
-                "volume": 1000,
-            }
-        ]
-    )
-    repo.save(
-        [
-            {
-                "ticker": "AAPL",
-                "date": "2024-01-01",
-                "open": 101.0,
-                "high": 111.0,
-                "low": 96.0,
-                "close": 106.0,
-                "volume": 2000,
-            }
-        ]
-    )
-
-    rows = repo.load({"ticker": "AAPL", "date": "2024-01-01"})
-
-    assert rows == [
-        {
-            "id": 1,
-            "ticker": "AAPL",
-            "date": rows[0]["date"],
-            "open": 101.0,
-            "high": 111.0,
-            "low": 96.0,
-            "close": 106.0,
-            "volume": 2000,
-        }
-    ]
-    assert str(rows[0]["date"]) == "2024-01-01"
-
-
-def test_save_ignores_empty_data(db: Db) -> None:
-    repo = DailyBarRepo(db)
+def test_save_returns_without_calling_db_for_empty_data():
+    db_conn = Mock()
+    repo = DailyBarRepo(db_conn)
 
     repo.save([])
 
-    rows = db.execute_query("SELECT id FROM daily_bar_history")
-    assert rows == []
+    db_conn.insert_or_update.assert_not_called()
 
 
-def test_load_returns_all_fields_by_default(db: Db) -> None:
-    repo = DailyBarRepo(db)
-    repo.save(
-        [
-            {
-                "ticker": "AAPL",
-                "date": "2024-01-01",
-                "open": 100.0,
-                "high": 110.0,
-                "low": 95.0,
-                "close": 105.0,
-                "volume": 1000,
-            }
-        ]
+def test_save_calls_insert_or_update_with_expected_arguments():
+    db_conn = Mock()
+    repo = DailyBarRepo(db_conn)
+    data = [
+        {
+            "ticker": "AAPL",
+            "date": 20240101,
+            "open": 100.0,
+            "high": 110.0,
+            "low": 95.0,
+            "close": 108.0,
+            "volume": 1000000,
+        }
+    ]
+
+    repo.save(data)
+
+    db_conn.insert_or_update.assert_called_once_with(
+        "daily_bar_history",
+        data,
+        exclude_upd_cols=["ticker", "date"],
     )
 
-    rows = repo.load({"ticker": "AAPL"})
 
-    assert len(rows) == 1
-    assert set(rows[0].keys()) == {
-        "id",
-        "ticker",
-        "date",
-        "open",
-        "high",
-        "low",
-        "close",
-        "volume",
-    }
+def test_load_calls_query_table_with_default_projection():
+    db_conn = Mock()
+    db_conn.query_table.return_value = [{"ticker": "AAPL", "date": 20240101}]
+    repo = DailyBarRepo(db_conn)
 
+    result = repo.load({"ticker": "AAPL"})
 
-def test_load_returns_only_requested_fields(db: Db) -> None:
-    repo = DailyBarRepo(db)
-    repo.save(
-        [
-            {
-                "ticker": "AAPL",
-                "date": "2024-01-01",
-                "open": 100.0,
-                "high": 110.0,
-                "low": 95.0,
-                "close": 105.0,
-                "volume": 1000,
-            }
-        ]
+    assert result == [{"ticker": "AAPL", "date": 20240101}]
+    db_conn.query_table.assert_called_once_with(
+        table="daily_bar_history",
+        projection=[],
+        filter={"ticker": "AAPL"},
+        order_by=["ticker", "date"],
     )
 
-    rows = repo.load({"ticker": "AAPL"}, fields=["ticker", "close"])
 
-    assert rows == [{"ticker": "AAPL", "close": 105.0}]
+def test_load_calls_query_table_with_custom_projection():
+    db_conn = Mock()
+    db_conn.query_table.return_value = [{"ticker": "AAPL"}]
+    repo = DailyBarRepo(db_conn)
+
+    result = repo.load({"ticker": "AAPL"}, fields=["ticker"])
+
+    assert result == [{"ticker": "AAPL"}]
+    db_conn.query_table.assert_called_once_with(
+        table="daily_bar_history",
+        projection=["ticker"],
+        filter={"ticker": "AAPL"},
+        order_by=["ticker", "date"],
+    )

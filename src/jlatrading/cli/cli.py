@@ -1,14 +1,16 @@
-from ..common.utils import DateUtils as du
-from typing import Optional
+from typing import Annotated
 import typer
 
 from ..common.utils import DateFormat
+from ..common.utils import DateUtils as du
 from .. import __version__
 from ..common.config import AppConfig
 from ..core import core
 
+
 # Initialize the main Typer application
-app = typer.Typer(help="Research Trading Project.")
+# app = typer.Typer(help="Research Trading Project.")
+app = typer.Typer(no_args_is_help=True)
 
 
 def run():
@@ -16,30 +18,25 @@ def run():
     app()
 
 
-def version_callback(value: bool):
-    """Callback function that prints the version and exits immediately."""
-    if value:
-        app_version = __version__
-        typer.echo(f"jla-trading v{app_version}")
-        raise typer.Exit()
+def show_version():
+    """Function that prints the version and exits immediately."""
+    app_version = __version__
+    typer.echo(f"jla-trading v{app_version}")
+    raise typer.Exit()
 
 
 @app.callback()
 def main(
-    version: Optional[bool] = typer.Option(
-        None,
+    version: bool = typer.Option(
+        False,
         "--version",
-        "-v",
-        callback=version_callback,
+        help="Show the application version and exit.",
         is_eager=True,
-        help="Show the application version and exit."
-    )
-):
-    """
-    Main entry point for global options.
-    This acts as a wrapper for your entire CLI application.
-    """
-    pass
+    ),
+) -> None:
+    if version:
+        show_version()
+        raise typer.Exit()
 
 
 @app.command()
@@ -48,7 +45,13 @@ def hello():
 
 
 @app.command()
-def daily_bar_history(tickers: list[str] | None = None, start_date: str = "", end_date: str = ""):
+def daily_bar_history(tickers: Annotated[list[str] | None, typer.Argument(help="Selected tickers.")] = None,
+                      start_date: Annotated[str, typer.Option(help="Lower limit operation date from in format '2020-01-20'")] = "",
+                      end_date: Annotated[str, typer.Option(help="Upper limit from operation date '2020-01-20'")] = ""):
+    """
+    Retrieves daily bar information for tickers.
+    If no tickers are provided, it using default from env
+    """
     valid_tickers: list[str] = []
     if tickers is not None:
         valid_tickers = [ticker.strip() for ticker in tickers if ticker.strip()]
@@ -57,10 +60,10 @@ def daily_bar_history(tickers: list[str] | None = None, start_date: str = "", en
         typer.echo("Missing tickers parameter, using default tickers from config: " + ", ".join(valid_tickers))
 
     if start_date and not du.is_valid_yyyymmdd_str(start_date):
-        typer.echo(f"Invalid start date format. Expected {DateFormat.YYYYMMDD_FORMAT}.")
+        typer.echo("Invalid start date format. Expected '2026-01-20'.")
 
     if end_date and not du.is_valid_yyyymmdd_str(end_date):
-        typer.echo(f"Invalid end date format. Expected {DateFormat.YYYYMMDD_FORMAT}.")
+        typer.echo("Invalid end date format. Expected '2026-01-20'.")
 
     if start_date == "":
         start_date = du.first_of_curr_month_yyyymmdd_str()
@@ -71,10 +74,10 @@ def daily_bar_history(tickers: list[str] | None = None, start_date: str = "", en
         typer.echo(f"Using today as end date since it was not provided: {end_date}")
 
     if not du.is_valid_yyyymmdd_str(start_date) or not du.is_valid_yyyymmdd_str(end_date):
-        raise typer.BadParameter(f"Invalid start date format. Please provide dates in the format {DateFormat.YYYYMMDD_FORMAT}.")
+        raise typer.BadParameter(f"Invalid start date format. Please provide dates in the format '2026-01-20'.")
 
     if not du.is_valid_yyyymmdd_str(end_date):
-        raise typer.BadParameter(f"Invalid end date format. Please provide dates in the format {DateFormat.YYYYMMDD_FORMAT}.")
+        raise typer.BadParameter(f"Invalid end date format. Please provide dates in the format '2026-01-20'.")
 
     if not du.is_valid_date_range(start_date, end_date):
         typer.echo("Start date must be less than or equal to end date.")
@@ -83,3 +86,9 @@ def daily_bar_history(tickers: list[str] | None = None, start_date: str = "", en
 
     records = core.download_daily_bar(valid_tickers, start_date=start_date, end_date=end_date)
     typer.echo(f"Downloaded and saved {records} records for tickers: {valid_tickers} from {start_date} to {end_date}")
+
+
+@app.command()
+def instruments_prices():
+    records = core.download_instruments_prices()
+    typer.echo(f"Downloaded and saved {records} records for instruments prices.")

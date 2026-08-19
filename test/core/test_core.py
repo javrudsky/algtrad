@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -81,3 +81,33 @@ def test_download_daily_bar_rejects_invalid_date_range() -> None:
 
     with pytest.raises(ValueError, match=expected_message):
         core.download_daily_bar(tickers, start_date=start_date, end_date=end_date)
+
+
+@patch("jlatrading.core.core.cf.build_market_service")
+def test_download_instruments_prices_builds_market_service_and_returns_result(
+    mock_build_market_service,
+):
+    market_service = Mock()
+    market_service.download_instruments_prices.return_value = 42
+    mock_build_market_service.return_value = market_service
+
+    result = core.download_instruments_prices()
+
+    assert result == 42
+    mock_build_market_service.assert_called_once_with()
+    market_service.download_instruments_prices.assert_called_once_with()
+
+
+@patch("jlatrading.core.core.cf.build_market_service")
+def test_download_instruments_prices_propagates_service_errors(
+    mock_build_market_service,
+):
+    market_service = Mock()
+    market_service.download_instruments_prices.side_effect = RuntimeError("boom")
+    mock_build_market_service.return_value = market_service
+
+    with pytest.raises(RuntimeError, match="boom"):
+        core.download_instruments_prices()
+
+    mock_build_market_service.assert_called_once_with()
+    market_service.download_instruments_prices.assert_called_once_with()
