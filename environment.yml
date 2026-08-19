@@ -24,6 +24,9 @@ dependencies:
   - pydantic
   - python-dotenv
   - pytest
+  - TA-lib
+  - statsmodels
+  - scipy
   - pip
   - pip:
     - jupyterlab-vim
