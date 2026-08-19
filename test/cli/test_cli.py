@@ -12,7 +12,7 @@ runner = CliRunner()
 def build_daily_bar_h_params(tickers, start_date=None, end_date=None) -> list[str]:
     params = ["daily-bar-history"]
     for t in tickers:
-        params.append(f"--tickers={t.strip()}")
+        params.append(f"{t.strip()}")
     if start_date:
         params.append(f"--start-date={start_date}")
     if end_date:
@@ -25,7 +25,7 @@ def test_daily_bar_history_invokes_download_tickers(monkeypatch) -> None:
     p_start_date = "2024-01-01"
     p_end_date = "2024-01-31"
     p_records = 10
-    p_tickers_str = ", ".join(f'{ticker.strip()}' for ticker in p_tickers)
+    p_tickers_str = " ".join(f'{ticker.strip()}' for ticker in p_tickers)
 
     fake_srv = Mock()
     fake_srv.download_daily_bar.return_value = p_records
@@ -93,19 +93,19 @@ def test_daily_bar_history_uses_default_dates_when_missing(monkeypatch) -> None:
 
 
 def test_daily_bar_history_rejects_invalid_start_date() -> None:
-    result = runner.invoke(app, ["daily-bar-history", "--tickers=YPFD.BA", "--start-date=bad-date", "--end-date=2024-01-31"])
+    result = runner.invoke(app, ["daily-bar-history", "YPFD.BA", "--start-date=bad-date", "--end-date=2026-01-20"])
 
     assert result.exit_code != 0
-    assert f"Invalid start date format. Expected {DateFormat.YYYYMMDD_FORMAT}." in result.stdout
+    assert "Invalid start date format. Expected '2026-01-20'." in result.stdout
 
 
 def test_daily_bar_history_rejects_invalid_end_date() -> None:
-    result = runner.invoke(app, ["daily-bar-history", "--tickers=YPFD.BA", "--start-date=2024-01-31", "--end-date=bad-date"])
+    result = runner.invoke(app, ["daily-bar-history", "YPFD.BA", "--start-date=2024-01-31", "--end-date=bad-date"])
 
-    assert f"Invalid end date format. Expected {DateFormat.YYYYMMDD_FORMAT}." in result.stdout
+    assert "Invalid end date format. Expected '2026-01-20'." in result.stdout
 
 
 def test_daily_bar_history_bad_date_range() -> None:
-    result = runner.invoke(app, ["daily-bar-history", "--tickers=YPFD.BA", "--start-date=2024-01-31", "--end-date=2024-01-01"])
+    result = runner.invoke(app, ["daily-bar-history", "YPFD.BA", "--start-date=2024-01-31", "--end-date=2024-01-01"])
 
     assert "Start date must be less than or equal to end date." in result.stdout
