@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 """Common utility functions for the trading project.
 
@@ -72,3 +72,19 @@ class DateUtils:
             return start <= end
         except ValueError:
             return False
+
+    @staticmethod
+    def yyyymmdd_str_to_utc_timestamp(date_str: str) -> int:
+        """
+        Convert a YYYY-MM-DD formatted string to a UTC timestamp.
+            Args:
+                date_str: A string in "YYYY-MM-DD" format.
+            Returns:
+                An integer representing the UTC timestamp.
+            Raises:
+                ValueError: if the provided string is not in the expected format.
+        """
+        try:
+            return int(datetime.strptime(date_str, DateFormat.YYYYMMDD_FORMAT).replace(tzinfo=timezone.utc).timestamp())
+        except ValueError:
+            raise ValueError(f"Invalid date format: {date_str}. Expected format is YYYY-MM-DD.")

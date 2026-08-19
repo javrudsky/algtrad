@@ -5,6 +5,7 @@ from typing import Protocol
 
 from .provider import MarketProvider
 from ..common.app_logger import AppLogger
+from ..common.utils import DateUtils
 
 logger = AppLogger.get_logger(__name__)
 
@@ -31,7 +32,7 @@ class YFinanceProvider(MarketProvider):
     def download_daily_bar(self,
                            tickers: list[str],
                            start_date: str,
-                           end_date: str) -> str:
+                           end_date: str) -> list[dict]:
         """
         Download historical price data for the specified tickers and date range using the yfinance library.
         Args:
@@ -43,10 +44,12 @@ class YFinanceProvider(MarketProvider):
         """
         # data = yf.download(tickers, start=start_date, end=end_date, interval="1d", group_by='ticker').to_json(orient="records")
         yf = self.yf
+        # Adding ".BA" suffix to each ticker for yfinance compatibility
+        tickers = [f"{ticker}.BA" for ticker in tickers]
         data = yf.download(tickers, start=start_date, end=end_date, interval="1d")
         if data is None or data.empty:
             logger.d(f"No data found for tickers: {tickers} from {start_date} to {end_date}")
-            return "[]"
+            return []
 
         data = (
                 data.stack(level="Ticker")
@@ -54,12 +57,22 @@ class YFinanceProvider(MarketProvider):
                 .rename(columns={"level_1": "Ticker"})
                 )
 
-        json_str = data.rename(columns=str.lower).to_json(orient="records")
+        # Adding this line to ensure only fieds available in DB table
+        data = data.loc[:, ["Date", "Ticker", "Open", "High", "Low", "Close", "Volume"]]
+        # Removing the ".BA" suffix from Argentinean tickers.
+        data["Ticker"] = data["Ticker"].map(lambda x: x.replace(".BA", ""))
+        # Converting the "Date" column to a timestamp integer for database compatibility.
+        data["Date"] = data["Date"].map(lambda x: int(x.timestamp()))
+        # Replacing nan values with -1 to find it easily in the database.
+        float_cols = data.select_dtypes(include=["float"]).columns
+        data[float_cols] = data[float_cols].fillna(-1.0)
+        # Renaming columns to lowercase to match the database schema and converting the DataFrame to a list of dictionaries.
+        data_dict = data.rename(columns=str.lower).to_dict(orient="records")
         logger.d(f"Downloaded data for tickers: {tickers} from {start_date} to {end_date}")
-        if json_str is None:
+        if data_dict is None:
             logger.d(f"No data found for tickers: {tickers} from {start_date} to {end_date}")
-            return "[]"
-        return json_str
+            return []
+        return data_dict
 
     def download_instruments_prices(self) -> list[dict]:
         """Return a list of available market tickers."""

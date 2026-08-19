@@ -9,8 +9,7 @@ from jlatrading.data_ingestion.service import MarketService
 
 def test_download_daily_bar_returns_record_count_and_saves_data() -> None:
     provider = Mock()
-    provider.download_daily_bar.return_value = """
-    [
+    provider.download_daily_bar.return_value = [
         {
             "ticker": "AAPL",
             "date": "2024-01-01",
@@ -30,7 +29,7 @@ def test_download_daily_bar_returns_record_count_and_saves_data() -> None:
             "volume": 2000
         }
     ]
-    """
+
     repo = Mock()
     storage = Mock()
     storage.daily_bar_repo = repo
@@ -75,7 +74,7 @@ def test_download_daily_bar_returns_record_count_and_saves_data() -> None:
 
 def test_download_daily_bar_returns_zero_for_empty_payload() -> None:
     provider = Mock()
-    provider.download_daily_bar.return_value = "[]"
+    provider.download_daily_bar.return_value = []
 
     repo = Mock()
     storage = Mock()
@@ -112,7 +111,7 @@ def test_download_daily_bar_reraises_provider_error() -> None:
 
 def test_download_daily_bar_reraises_repository_error() -> None:
     provider = Mock()
-    provider.download_daily_bar.return_value = '[{"ticker": "AAPL", "date": "2024-01-01"}]'
+    provider.download_daily_bar.return_value = [{"ticker": "AAPL", "date": "2024-01-01"}]
     repo = Mock()
     storage = Mock()
     storage.daily_bar_repo = repo

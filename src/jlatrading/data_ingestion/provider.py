@@ -12,7 +12,7 @@ class MarketProvider(ABC):
     def download_daily_bar(self,
                            tickers: list[str],
                            start_date: str,
-                           end_date: str) -> str:
+                           end_date: str) -> list[dict]:
 
         """Return daily historical price data for ``symbol`` between ``start`` and ``end``.
         Args:
@@ -20,7 +20,6 @@ class MarketProvider(ABC):
             start: Start date in ``yyyy-mm-dd`` format.
             end: End date in ``yyyy-mm-dd`` format.
         Returns:
-            A json string representing the historical price data for the specified symbol and date range.
+            A dictionary representing the historical price data for the specified symbol and date range.
         """
-        # TODO: This function should return a dict
         pass

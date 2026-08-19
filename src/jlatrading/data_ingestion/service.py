@@ -47,13 +47,8 @@ class MarketService(BaseMarketService):
         # tickers = ["MELI.BA", "YPFD.BA"]
         records = -1
         try:
-            json_hist = self.market_prov.download_daily_bar(tickers, start_date, end_date)
-
-            logger.d(f"Downloaded JSON data for tickers: {json_hist[:3]}...")
-            dic_hist = json.loads(json_hist)
-
+            dic_hist = self.market_prov.download_daily_bar(tickers, start_date, end_date)
             logger.d(f"Downloaded DIC data for tickers: {dic_hist[:3]}...")
-
             self.daily_bar_repo.save(dic_hist)
             records = len(dic_hist)
         except Exception as ex:

@@ -244,16 +244,16 @@ class IolClient:
 
 class IolProvider(MarketProvider):
     INSTRUMENT_TYPES = [
-                "opciones",
+                # "opciones",
                 "cedears",
                 "acciones",
-                "aDRs",
-                "titulosPublicos",
-                "cauciones",
-                "cHPD",
-                "futuros",
-                "obligacionesNegociables",
-                "letras",
+                # "aDRs",
+                # "titulosPublicos",
+                # "cauciones",
+                # "cHPD",
+                # "futuros",
+                # "obligacionesNegociables",
+                # "letras",
             ]
 
     def __init__(self, iol_client: IolClient):

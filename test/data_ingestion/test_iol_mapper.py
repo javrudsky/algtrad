@@ -34,7 +34,7 @@ base_result = {
         "bid_price": 12480,
         "ask_price": 12520,
         "ask_quantity": 5277,
-        "last_price": 12500,
+        "close_price": 12500,
         "percent_change": -2.19,
         "open_price": 12640,
         "high_price": 12660,

@@ -1,13 +1,18 @@
+from datetime import datetime
 from unittest.mock import Mock
-import json
 import pandas as pd
 
 from jlatrading.data_ingestion.yfinance_provider import YFinanceProvider
 
+d1 = datetime(2024, 1, 1)
+d2 = datetime(2024, 1, 2)
+
 
 def mock_yfinance_data() -> pd.DataFrame:
+
     dfy = pd.DataFrame({
-        "Date": ["2024-01-01", "2024-01-02", "2024-01-01", "2024-01-02"],
+        # "Date": ["2024-01-01", "2024-01-02", "2024-01-01", "2024-01-02"],
+        "Date": [d1, d2, d1, d2],
         "Ticker": ["YPF", "YPF", "AAL", "AAL"],
         "Close": [15, 25, 35, 45],
         "High": [12, 22, 32, 42],
@@ -28,19 +33,21 @@ def mock_yfinance_processed() -> pd.DataFrame:
             .reset_index()
             # .rename(columns={"level_1": "Ticker"})
             )
+
     return data
 
 
-def mock_yfinance_json() -> str:
+def mock_yfinance_dict() -> list[dict]:
     df = mock_yfinance_processed()
     df = df.rename(columns=str.lower)
-    json_data = df.to_json(orient="records")
-    if json_data is None:
-        return "[]"
-    return json_data
+    df["date"] = df["date"].map(lambda x: 1704067200 if x == d1 else 1704153600)
+    dict_data = df.to_dict(orient="records")
+    if dict_data is None:
+        return []
+    return dict_data
 
 
-def test_download_daily_bar_returns_empty_json_when_no_data() -> None:
+def test_download_daily_bar_returns_empty_dict_when_no_data() -> None:
     wrapper = Mock()
     wrapper.download.return_value = pd.DataFrame()
     provider = YFinanceProvider(wrapper)
@@ -50,16 +57,18 @@ def test_download_daily_bar_returns_empty_json_when_no_data() -> None:
             "2024-01-01", "2024-01-31"
             )
 
-    assert result == "[]"
+    assert result == []
+
+    # Yfinance library needs the ".BA" suffix for Argentinian tickers.
     wrapper.download.assert_called_once_with(
-            ["YPF", "AAL"],
+            ["YPF.BA", "AAL.BA"],
             start="2024-01-01",
             end="2024-01-31",
             interval="1d",
         )
 
 
-def test_download_daily_bar_returns_dataframe_as_json() -> None:
+def test_download_daily_bar_returns_dataframe_as_dict() -> None:
     data = pd.DataFrame(mock_yfinance_data())
     wrapper = Mock()
     wrapper.download.return_value = data
@@ -70,12 +79,14 @@ def test_download_daily_bar_returns_dataframe_as_json() -> None:
         "2024-01-01",
         "2024-01-02",
     )
+    mocked = mock_yfinance_dict()
+    mocked = sorted(mocked, key=lambda d: (d["ticker"], d["date"]))
+    result = sorted(result, key=lambda d: (d["ticker"], d["date"]))
 
-    mocked = mock_yfinance_json()
-
-    assert json.loads(result) == json.loads(mocked)
+    assert result == mocked
+    # Yfinance library needs the ".BA" suffix for Argentinian tickers.
     wrapper.download.assert_called_once_with(
-            ["YPF", "AAL"],
+            ["YPF.BA", "AAL.BA"],
             start="2024-01-01",
             end="2024-01-02",
             interval="1d",
