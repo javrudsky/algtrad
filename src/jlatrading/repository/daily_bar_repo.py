@@ -38,29 +38,7 @@ class DailyBarRepo(Repository):
         """
         Load daily bar rows from the repository using equality filters.
         """
-        selected_fields = fields or [
-            "id",
-            "ticker",
-            "date",
-            "open",
-            "high",
-            "low",
-            "close",
-            "volume",
-        ]
-        quoted_fields = ", ".join(f'"{field}"' for field in selected_fields)
-
-        query = f"""
-            SELECT {quoted_fields}
-            FROM {self.TABLE_NAME}
-        """
-
-        if filter:
-            where_clause = " AND ".join(
-                f'"{column}" = {RepoHelper.sql_literal(value)}'
-                for column, value in filter.items()
-            )
-            query += f"\nWHERE {where_clause}"
-
-        query += "\nORDER BY ticker, date"
-        return self.db_conn.execute_query(query)
+        return self.db_conn.query_table(table=self.TABLE_NAME,
+                                        projection=fields or [],
+                                        filter=filter,
+                                        order_by=["ticker", "date"])

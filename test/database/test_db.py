@@ -1,9 +1,11 @@
 import pytest
+from unittest.mock import Mock, patch
 
 from jlatrading.common.app_logger import AppLogger
 from jlatrading.common.exceptions import DbError
 from jlatrading.database.db import Db
 from jlatrading.database.duck_db import DuckDb
+from jlatrading.database.db_helper import DbHelper
 
 logger = AppLogger.get_logger(__name__)
 
@@ -47,7 +49,8 @@ def test_execute_query_returns_empty_list_for_statements_without_result_set(db: 
 
 def test_execute_query_raises_db_error_for_invalid_sql(db: Db) -> None:
     logger.d("Test started - test_execute_query_raises_db_error_for_invalid_sql")
-    with pytest.raises(DbError, match="Failed executing query"):
+
+    with pytest.raises(DbError, match="Failed to execute query"):
         db.execute_query("SELECT FROM")
 
 
@@ -204,3 +207,96 @@ def test_delete_rejects_empty_filter(db: Db) -> None:
 def test_delete_rejects_empty_filter_entry(db: Db) -> None:
     with pytest.raises(ValueError, match="Filter entries must not be empty."):
         db.delete("daily_bar_history", [{}])
+
+
+def test_query_table_builds_select_with_projection_filter_and_order_by():
+    db = DuckDb(":memory:")
+    db.execute_query = Mock(return_value=[{"symbol": "AAL"}])
+
+    expected_sql_before_normalize = (
+        f'SELECT {DbHelper.quote_identifier("symbol")}, '
+        f'{DbHelper.quote_identifier("last_price")} '
+        f'FROM {DbHelper.quote_identifier("instrument_price")}\n'
+        f'WHERE {DbHelper.quote_identifier("market")} = ? '
+        f'AND {DbHelper.quote_identifier("currency")} = ?\n'
+        f'ORDER BY {DbHelper.quote_identifier("symbol")}, '
+        f'{DbHelper.quote_identifier("timestamp")}'
+    )
+
+    with patch.object(
+        DbHelper,
+        "normalize_sql",
+        return_value="NORMALIZED_SQL",
+    ) as mock_normalize:
+        result = db.query_table(
+            table="instrument_price",
+            projection=["symbol", "last_price"],
+            filter={"market": "1", "currency": "2"},
+            order_by=["symbol", "timestamp"],
+        )
+
+    assert result == [{"symbol": "AAL"}]
+    mock_normalize.assert_called_once_with(expected_sql_before_normalize)
+    db.execute_query.assert_called_once_with("NORMALIZED_SQL", ["1", "2"])
+
+
+def test_query_table_uses_star_when_projection_is_empty():
+    db = DuckDb(":memory:")
+    db.execute_query = Mock(return_value=[])
+
+    expected_sql_before_normalize = f'SELECT * FROM {DbHelper.quote_identifier("instrument_price")}'
+
+    with patch.object(
+        DbHelper,
+        "normalize_sql",
+        return_value="NORMALIZED_SQL",
+    ) as mock_normalize:
+        result = db.query_table(
+            table="instrument_price",
+            projection=[],
+        )
+
+    assert result == []
+    mock_normalize.assert_called_once_with(expected_sql_before_normalize)
+    db.execute_query.assert_called_once_with("NORMALIZED_SQL", [])
+
+
+def test_query_table_omits_where_and_order_by_when_not_provided():
+    db = DuckDb(":memory:")
+    db.execute_query = Mock(return_value=[{"id": 1}])
+
+    expected_sql_before_normalize = (
+        f'SELECT {DbHelper.quote_identifier("id")} '
+        f'FROM {DbHelper.quote_identifier("instrument_price")}'
+    )
+
+    with patch.object(
+        DbHelper,
+        "normalize_sql",
+        return_value="NORMALIZED_SQL",
+    ) as mock_normalize:
+        result = db.query_table(
+            table="instrument_price",
+            projection=["id"],
+            filter=None,
+            order_by=None,
+        )
+
+    assert result == [{"id": 1}]
+    mock_normalize.assert_called_once_with(expected_sql_before_normalize)
+    db.execute_query.assert_called_once_with("NORMALIZED_SQL", [])
+
+
+def test_query_table_preserves_filter_value_order_in_params():
+    db = DuckDb(":memory:")
+    db.execute_query = Mock(return_value=[])
+    filters = {"market": 1, "settlement_term": "T1", "symbol": "AAL"}
+
+    with patch.object(DbHelper, "normalize_sql", return_value="NORMALIZED_SQL"):
+        db.query_table(
+            table="instrument_price",
+            projection=["symbol"],
+            filter=filters,
+        )
+
+    db.execute_query.assert_called_once_with("NORMALIZED_SQL", [1, "T1", "AAL"])

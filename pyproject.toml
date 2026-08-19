@@ -6,6 +6,10 @@ readme = "README.md"
 requires-python = ">=3.12"
 authors = [{name = "Javier L. Avrudsky"}]
 
+[project.scripts]
+jtrad = "jlatrading.cli.cli:run"
+
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
