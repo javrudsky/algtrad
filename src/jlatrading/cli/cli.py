@@ -92,3 +92,13 @@ def daily_bar_history(tickers: Annotated[list[str] | None, typer.Argument(help="
 def instruments_prices():
     records = core.download_instruments_prices()
     typer.echo(f"Downloaded and saved {records} records for instruments prices.")
+
+
+@app.command()
+def daily_bar_stats():
+    result = core.daily_bar_summary()
+    typer.echo("\nDaily Bar Summary")
+    typer.echo("-----------------")
+    typer.echo(f"Period: {result['start_date']} - {result['end_date']}")
+    typer.echo(f"Records: {result['total_rows']}\n")
+

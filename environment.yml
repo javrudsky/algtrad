@@ -27,6 +27,7 @@ dependencies:
   - TA-lib
   - statsmodels
   - scipy
+  - ipywidgets
   - pip
   - pip:
     - jupyterlab-vim

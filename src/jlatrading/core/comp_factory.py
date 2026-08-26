@@ -13,13 +13,16 @@ from ..data_ingestion.iol_provider import IolProvider, IolClient
 from ..data_ingestion.compound_provider import CompoundProvider
 
 # Services
-from ..data_ingestion.service import MarketService
+from ..data_ingestion.service import BaseMarketService, MarketService
+from ..query.service import BaseSystemStatsService, SystemStatsService
 
 # Repositories
 from ..repository.storage import Storage
 from ..repository.repository import Repository
+from ..repository.view import DbView
 from ..repository.daily_bar_repo import DailyBarRepo
 from ..repository.instrument_price_repo import InstrumentPriceRepo
+from ..repository.daily_bar_view import DailyBarSummaryView
 
 # Database
 from ..database.db import Db
@@ -39,9 +42,14 @@ class ComponentFactory(Protocol):
         return InstrumentPriceRepo(db)
 
     @staticmethod
+    def daily_bar_summary_view(db: Db) -> DbView:
+        return DailyBarSummaryView(db)
+
+    @staticmethod
     def storage(db: Db) -> Storage:
         return Storage(daily_bar_repo=ComponentFactory.daily_bar_repo(db),
-                       instruments_price_repo=ComponentFactory.instruments_prices_repo(db))
+                       instruments_price_repo=ComponentFactory.instruments_prices_repo(db),
+                       daily_bar_summary_view=ComponentFactory.daily_bar_summary_view(db))
 
     @staticmethod
     def market_provider() -> MarketProvider:
@@ -55,8 +63,12 @@ class ComponentFactory(Protocol):
 
     @staticmethod
     def market_service(market_provider: MarketProvider,
-                       storage: Storage) -> MarketService:
+                       storage: Storage) -> BaseMarketService:
         return MarketService(market_provider, storage)
+
+    @staticmethod
+    def system_stats_service(storage: Storage) -> BaseSystemStatsService:
+        return SystemStatsService(storage)
 
     @staticmethod
     def db(path: str) -> Db:
@@ -78,10 +90,18 @@ class ComponentFactory(Protocol):
         return ComponentFactory.db(db_path)
 
     @staticmethod
-    def build_market_service(db_path: str | None = None) -> MarketService:
+    def build_market_service(db_path: str | None = None) -> BaseMarketService:
         db = ComponentFactory.build_db(db_path)
         db.connect()
         storage = ComponentFactory.storage(db)
         market_provider = ComponentFactory.market_provider()
         market_service = ComponentFactory.market_service(market_provider, storage)
         return market_service
+
+    @staticmethod
+    def build_system_stats_service(db_path: str | None = None) -> BaseSystemStatsService:
+        db = ComponentFactory.build_db(db_path)
+        db.connect()
+        storage = ComponentFactory.storage(db)
+        ss_service = ComponentFactory.system_stats_service(storage)
+        return ss_service

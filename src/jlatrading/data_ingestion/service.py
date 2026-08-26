@@ -1,5 +1,4 @@
 from typing import Protocol
-import json
 from .provider import MarketProvider
 from ..repository.storage import Storage
 from ..common.app_logger import AppLogger

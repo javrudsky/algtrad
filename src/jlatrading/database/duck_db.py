@@ -4,6 +4,7 @@ from pathlib import Path
 from .db import Db
 from .db_helper import DbHelper
 from .db_tables import tables_config
+from .db_views import views_config
 from ..common.exceptions import DbError
 from ..common.app_logger import AppLogger
 
@@ -59,6 +60,7 @@ class DuckDb(Db):
 
         Opens a connection if one is not already available, then creates the
         sequences and tables defined in ``tables_config``.
+        Then creates the views defined in ``views_config``.
 
         Raises:
             DbError: If the database structure cannot be created.
@@ -70,12 +72,19 @@ class DuckDb(Db):
 
         try:
             self.conn = self.__open_connection()
-            logger.d("Creating database structure from configuration.")
+            logger.d("Creating database tables structure from configuration.")
             for table_config in tables_config:
                 logger.d(f"Creating sequence for {table_config['table_name']}")
                 self.conn.execute(f"CREATE SEQUENCE  IF NOT EXISTS { table_config['table_name'] }_id_seq START 1")
                 logger.d(f"Creating table {table_config['table_name']}")
+                # TODO: Replace "insert_sql" by "create_sql"
                 self.conn.execute(table_config["insert_sql"])
+
+            logger.d("Creating database view structure from configuration.")
+            for table_config in views_config:
+                logger.d(f"Creating view {table_config['view_name']}")
+                self.conn.execute(table_config["create_sql"])
+
         except duckdb.Error as exc:
             logger.e("Failed creating database structure: {str(exc)}")
             raise DbError(f"Failed creating database estructure: {str(exc)}") from exc

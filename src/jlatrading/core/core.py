@@ -36,3 +36,7 @@ def download_daily_bar(tickers: list[str], start_date: str = "", end_date: str =
 def download_instruments_prices() -> int:
     market_service = cf.build_market_service()
     return market_service.download_instruments_prices()
+
+def daily_bar_summary() -> dict:
+    srv = cf.build_system_stats_service()
+    return srv.daily_bar_summary()
